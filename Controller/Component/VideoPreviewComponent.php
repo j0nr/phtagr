@@ -119,7 +119,61 @@ class VideoPreviewComponent extends Component {
         $this->FileManager->add($thumbFilename);
       }
     }
+    $this->addWatermark($thumbFilename);
     return $thumbFilename;
+  }
+  private function addWatermark($vidThumbFile) {
+    // Add watermark of video-icon.png
+    $imgVidThumb = imagecreatefromjpeg($vidThumbFile);
+    $imgVidThWidth = imagesx($imgVidThumb);
+    $imgVidThHeight = imagesy($imgVidThumb);
+    $imgWM = imagecreatefrompng(APP . 'webroot' . DS . 'img' . DS . 'play.icon.png');
+    $imgWMWidth = imagesx($imgWM);
+    $imgWMHeight = imagesy($imgWM);
+    if($imgVidThWidth > '1000' || $imgVidThHeight > '1000') {
+        $WMXpos = ($imgVidThWidth - 344) / 2;
+        $WMYpos = ($imgVidThHeight - 344) / 2;
+      imagecopy(
+                    $imgVidThumb,
+                    $imgWM,
+                    $WMXpos,
+                    $WMYpos,
+                    0,
+                    0,
+                    $imgWMWidth,
+                    $imgWMHeight
+                    );
+      imagejpeg($imgVidThumb, $vidThumbFile, 100);
+    } else {
+      // resize to suit smaller thumbnails
+      if($imgVidThWidth < $imgVidThHeight) {
+        $newWMSize = round(344*($imgVidThWidth/1000));
+        $WMXpos = ($imgVidThWidth - $newWMSize) / 2;
+        $WMYpos = ($imgVidThHeight - $newWMSize) / 2;
+      } else {
+        $newWMSize = round(344*($imgVidThHeight/1000));
+        $WMXpos = ($imgVidThWidth - $newWMSize) / 2;
+        $WMYpos = ($imgVidThHeight - $newWMSize) / 2;
+      }
+      $newWMimg = imagecreatetruecolor($newWMSize,$newWMSize);
+      $white = imagecolorallocate($newWMimg, 255, 255, 255);
+      imagecolortransparent($newWMimg, $white);
+      imagealphablending($newWMimg, false);
+      imagecopyresized($newWMimg, $imgWM, 0, 0, 0, 0, $newWMSize,$newWMSize, $imgWMWidth, $imgWMHeight);
+      imagecopy(
+                    $imgVidThumb,
+                    $newWMimg,
+                    $WMXpos,
+                    $WMYpos,
+                    0,
+                    0,
+                    $newWMSize,
+                    $newWMSize
+                    );
+      imagejpeg($imgVidThumb, $vidThumbFile, 100);
+    }
+    imagedestroy($imgVidThumb);
+    imagedestroy($imgWM);
   }
 
   /** Returns the preview filename of the internal cache
