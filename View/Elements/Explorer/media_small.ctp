@@ -7,13 +7,31 @@
   }
 
   // image centrering from http://www.brunildo.org/test/img_center.html
-  echo '<div class="preview"><span></span>';
-  echo $this->Html->tag('a',
-    $this->Html->tag('img', false, array(
-      'src' => Router::url("/media/thumb/".$media['Media']['id']),
-      'width' => $size[0], 'height' => $size[1],
-      'alt' => $media['Media']['name'])),
-    array('href' => Router::url("/images/view/".$media['Media']['id'].'/'.$this->Breadcrumb->params($imageCrumbs))));
+  if($media['Media']['type'] == "2"){
+    echo '<div class="preview video"><span></span>';
+    echo $this->Html->tag('a',
+      $this->Html->tag('img', false, array(
+        'src' => Router::url("/media/thumb/".$media['Media']['id']),
+        'width' => $size[0], 'height' => $size[1],
+        'alt' => $media['Media']['name'])),
+      array('href' => Router::url("/images/view/".$media['Media']['id'].'/'.$this->Breadcrumb->params($imageCrumbs))));
+    echo $this->Html->tag('a',
+      $this->Html->tag('img', false, array(
+        'src' => Router::url("/webroot/img/play.icon.png"),
+        'alt' => "Video Icon", 'class' => 'play-sml')),
+      array('href' => Router::url("/images/view/".$media['Media']['id'].'/'.$this->Breadcrumb->params($imageCrumbs)),'class' => "play-sml"));
+      /*echo $this->Html->tag('img', false, array(
+        'src' => Router::url("/webroot/img/play.icon.png"),
+        'alt' => "Video Icon", 'class' => 'play-sml'));*/
+  } else { 
+    echo '<div class="preview photo"><span></span>';
+    echo $this->Html->tag('a',
+      $this->Html->tag('img', false, array(
+        'src' => Router::url("/media/thumb/".$media['Media']['id']),
+        'width' => $size[0], 'height' => $size[1],
+        'alt' => $media['Media']['name'])),
+      array('href' => Router::url("/images/view/".$media['Media']['id'].'/'.$this->Breadcrumb->params($imageCrumbs))));
+      }
   echo "</div>";
 ?>
 

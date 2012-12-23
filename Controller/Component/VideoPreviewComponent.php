@@ -119,7 +119,7 @@ class VideoPreviewComponent extends Component {
         $this->FileManager->add($thumbFilename);
       }
     }
-    $this->addWatermark($thumbFilename);
+   // $this->addWatermark($thumbFilename);
     return $thumbFilename;
   }
   private function addWatermark($vidThumbFile) {

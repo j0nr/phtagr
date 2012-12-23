@@ -91,12 +91,14 @@
         +link
     > .preview
       display: table-cell
-      text-align: center
+      /*text-align: center*/
+      line-height: 220px;
       padding: 3px
       > a
         vertical-align: middle
         > img
           vertical-align: middle
+          position:relative
       > *
         text-align: center
         overflow: hidden
@@ -140,6 +142,13 @@
     padding: 5px
     img
       margin: 3px 0px
+    a.play
+      > img
+        position: absolute;
+        top: 65px;
+        left: 65px;
+        width: 100px;
+        height:100px;
   .actions
     right: 2px
     top: 197px
@@ -155,6 +164,13 @@
     padding: 0px
     height: 110px
     vertical-align: middle
+    a.play-sml
+      > img
+        position: absolute;
+        top: 95px;
+        left: 35px;
+        width: 40px;
+        height: 40px;
   .actions
     right: 0px
     top: 77px
