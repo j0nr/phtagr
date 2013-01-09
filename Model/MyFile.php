@@ -3,12 +3,12 @@
  * PHP versions 5
  *
  * phTagr : Tag, Browse, and Share Your Photos.
- * Copyright 2006-2012, Sebastian Felis (sebastian@phtagr.org)
+ * Copyright 2006-2013, Sebastian Felis (sebastian@phtagr.org)
  *
  * Licensed under The GPL-2.0 License
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright 2006-2012, Sebastian Felis (sebastian@phtagr.org)
+ * @copyright     Copyright 2006-2013, Sebastian Felis (sebastian@phtagr.org)
  * @link          http://www.phtagr.org phTagr
  * @package       Phtagr
  * @since         phTagr 2.2b3
@@ -31,7 +31,8 @@ class MyFile extends AppModel
     FILE_TYPE_VIDEO => array('avi', 'mpg', 'mpeg', 'mov', 'mp4', 'mts', 'flv', 'ogg'),
     FILE_TYPE_VIDEOTHUMB => array('thm'),
     FILE_TYPE_TEXT => array('txt'),
-    FILE_TYPE_GPS => array('log')
+    FILE_TYPE_GPS => array('log'),
+    FILE_TYPE_SIDECAR => array('xmp')
     );
 
   var $actsAs = array('Type', 'Flag');
@@ -142,6 +143,16 @@ class MyFile extends AppModel
     $path = Folder::slashTerm(dirname($filename));
 
     return $this->find('first', array('conditions' => array("path" => $path, "file" => $file)));
+  }
+
+  /**
+   * Find all files within the path
+   *
+   * @param string $path
+   * @return array
+   */
+  public function findAllByPath($path) {
+    return $this->find('all', array('conditions' => array("path" => Folder::slashTerm($path))));
   }
 
   /**

@@ -3,12 +3,12 @@
  * PHP versions 5
  *
  * phTagr : Tag, Browse, and Share Your Photos.
- * Copyright 2006-2012, Sebastian Felis (sebastian@phtagr.org)
+ * Copyright 2006-2013, Sebastian Felis (sebastian@phtagr.org)
  *
  * Licensed under The GPL-2.0 License
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright 2006-2012, Sebastian Felis (sebastian@phtagr.org)
+ * @copyright     Copyright 2006-2013, Sebastian Felis (sebastian@phtagr.org)
  * @link          http://www.phtagr.org phTagr
  * @package       Phtagr
  * @since         phTagr 2.2b3
@@ -185,7 +185,7 @@ class BreadcrumbHelper extends AppHelper
     $form .= $this->Form->hidden('Breadcrumb.current', array('value' => implode('/', $crumbs), 'div' => false));
     $form .= $this->Form->input('Breadcrumb.input', array('div' => false, 'label' => false));
     $form .= $this->Autocomplete->autoComplete('Breadcrumb.input', 'autocomplete/crumb', array('submitOnEnter' => true));
-    $form .= $this->Form->submit('add', array('div' => false));
+    $form .= $this->Form->submit(__('Add'), array('div' => false));
     $form .= "</div>";
     $form .= $this->Form->end();
 

@@ -3,12 +3,12 @@
  * PHP versions 5
  *
  * phTagr : Tag, Browse, and Share Your Photos.
- * Copyright 2006-2012, Sebastian Felis (sebastian@phtagr.org)
+ * Copyright 2006-2013, Sebastian Felis (sebastian@phtagr.org)
  *
  * Licensed under The GPL-2.0 License
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright 2006-2012, Sebastian Felis (sebastian@phtagr.org)
+ * @copyright     Copyright 2006-2013, Sebastian Felis (sebastian@phtagr.org)
  * @link          http://www.phtagr.org phTagr
  * @package       Phtagr
  * @since         phTagr 2.2b3
@@ -276,6 +276,22 @@ class AppController extends Controller
 
     return true;
   }
-
+  
+  /**
+   * Log User (username, Ip, path) if admin 'users logging option' enabled 
+   * localhost and internal network not logged
+   */
+  public function logUser()  {
+    if (!$this->getOption('user.logging.enable', 0)) {
+      return false;
+    }
+    $user = $this->getUser();
+    $IP = $this->request->clientIp();
+    $path = $this->request->here;
+    if (($IP !== '127.0.0.1') and (substr($IP,0,7) !== '192.168')) {
+      $this->log("User '{$user['User']['username']}' ({$user['User']['id']}), IP ".$IP.", path: ".$path, 'IP_log');
+    }
+  }
+  
 }
 ?>

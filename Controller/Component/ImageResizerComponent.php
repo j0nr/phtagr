@@ -3,12 +3,12 @@
  * PHP versions 5
  *
  * phTagr : Tag, Browse, and Share Your Photos.
- * Copyright 2006-2012, Sebastian Felis (sebastian@phtagr.org)
+ * Copyright 2006-2013, Sebastian Felis (sebastian@phtagr.org)
  *
  * Licensed under The GPL-2.0 License
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright 2006-2012, Sebastian Felis (sebastian@phtagr.org)
+ * @copyright     Copyright 2006-2013, Sebastian Felis (sebastian@phtagr.org)
  * @link          http://www.phtagr.org phTagr
  * @package       Phtagr
  * @since         phTagr 2.2b3
@@ -21,7 +21,7 @@ if (!class_exists('phpThumb') && !App::import('Vendor', 'phpthumb', array('file'
 class ImageResizerComponent extends Component {
 
   var $controller = null;
-  var $components = array('Command');
+  var $components = array('Command', 'Exiftool');
   var $_semaphoreId = false;
 
   public function initialize(Controller $controller) {
@@ -90,7 +90,7 @@ class ImageResizerComponent extends Component {
     }
 
     if ($options['clearMetaData']) {
-      $this->clearMetaData($dst);
+      $this->Exiftool->clearMetaData($dst);
     }
     return true;
   }
@@ -182,30 +182,6 @@ class ImageResizerComponent extends Component {
     $phpThumb->config_cache_directory = dirname($dst);
     $phpThumb->config_cache_disable_warning = false;
     $phpThumb->cache_filename = $dst;
-  }
-
-  /**
-   * Clear image metadata from a file
-   *
-   * @param filename Filename to file to clean
-   */
-  public function clearMetaData($filename) {
-    if (!file_exists($filename)) {
-      Logger::err("Filename '$filename' does not exists");
-      return false;
-    }
-    if (!is_writeable($filename)) {
-      Logger::err("Filename '$filename' is not writeable");
-      return false;
-    }
-
-    $bin = $this->controller->getOption('bin.exiftool', 'exiftool');
-    if ($this->Command->run($bin, array('-all=', '-overwrite_original', $filename)) != 0) {
-      Logger::err("Cleaning of meta data of file '$filename' failed");
-      return false;
-    }
-    Logger::debug("Cleaned meta data of '$filename'");
-    return true;
   }
 
 }

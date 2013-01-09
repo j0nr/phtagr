@@ -3,12 +3,12 @@
  * PHP versions 5
  *
  * phTagr : Tag, Browse, and Share Your Photos.
- * Copyright 2006-2012, Sebastian Felis (sebastian@phtagr.org)
+ * Copyright 2006-2013, Sebastian Felis (sebastian@phtagr.org)
  *
  * Licensed under The GPL-2.0 License
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright 2006-2012, Sebastian Felis (sebastian@phtagr.org)
+ * @copyright     Copyright 2006-2013, Sebastian Felis (sebastian@phtagr.org)
  * @link          http://www.phtagr.org phTagr
  * @package       Phtagr
  * @since         phTagr 2.2b3
@@ -24,7 +24,7 @@ class ExplorerController extends AppController
   var $helpers = array('Form', 'Html', 'ImageData', 'Time', 'ExplorerMenu', 'Rss', 'Search', 'Navigator', 'Tab', 'Breadcrumb', 'Autocomplete');
 
   var $crumbs = array();
-  var $paginateActions = array('category', 'date', 'edit', 'group', 'index', 'location', 'sublocation', 'city', 'state', 'country', 'query', 'tag', 'user', 'view', 'quicksearch');
+  var $paginateActions = array('category', 'date', 'edit', 'group', 'index', 'location', 'sublocation', 'city', 'state', 'country', 'query', 'tag', 'user', 'view', 'quicksearch', 'selection');
 
   public function implementedEvents() {
     $events = parent::implementedEvents();
@@ -45,6 +45,7 @@ class ExplorerController extends AppController
     }
 
     parent::beforeFilter();
+    $this->logUser();
     $this->crumbs = $this->Search->urlToCrumbs($this->request->url, 2);
   }
 
@@ -699,6 +700,40 @@ class ExplorerController extends AppController
     $this->Search->setHelperData();
     Configure::write('debug', 0);
     $this->render('updatemeta');
+  }
+
+  public function selection($action) {
+    $validActions = array('unlink', 'deleteCache', 'sync');
+    if (!$this->RequestHandler->isPost()) {
+      Logger::warn("Decline wrong ajax request");
+      $this->redirect(null, 404);
+    } else if (!in_array($action, $validActions)) {
+      Logger::warn("Invalid selection action: $action");
+      $this->render('index');
+      return;
+    } else if (!isset($this->request->data['Media']['ids'])) {
+      Logger::warn("No media ids is empty");
+      $this->render('index');
+      return;
+    }
+    $user = $this->getUser();
+    $ids = preg_split('/\s*,\s*/', trim($this->request->data['Media']['ids']));
+    $ids = array_unique($ids);
+    $allMedia = $this->Media->find('all', array('conditions' => array('Media.id' => $ids)));
+    foreach ($allMedia as $media) {
+      if (!$this->Media->canWriteAcl($media, $user)) {
+        continue;
+      }
+      if ($action == 'unlink') {
+        $this->Media->delete($media['Media']['id']);
+      } else if ($action == 'deleteCache') {
+        $this->Media->deleteCache($media);
+      } else if ($action == 'sync') {
+        $this->FilterManager->write($media);
+      }
+    }
+
+    $this->render('index');
   }
 
   public function sync($id) {

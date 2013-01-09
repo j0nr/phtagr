@@ -3,12 +3,12 @@
  * PHP versions 5
  *
  * phTagr : Tag, Browse, and Share Your Photos.
- * Copyright 2006-2012, Sebastian Felis (sebastian@phtagr.org)
+ * Copyright 2006-2013, Sebastian Felis (sebastian@phtagr.org)
  *
  * Licensed under The GPL-2.0 License
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright 2006-2012, Sebastian Felis (sebastian@phtagr.org)
+ * @copyright     Copyright 2006-2013, Sebastian Felis (sebastian@phtagr.org)
  * @link          http://www.phtagr.org phTagr
  * @package       Phtagr
  * @since         phTagr 2.2b3
@@ -42,6 +42,7 @@ class HomeController extends AppController
     $this->pageTitle = __("Home");
 
     parent::beforeFilter();
+    $this->logUser();
   }
 
   /** @todo improve the randomized newest media */
@@ -74,6 +75,13 @@ class HomeController extends AppController
     $comments = $this->Comment->paginate(array(), array(), 'Comment.date DESC', 4);
     $this->FastFileResponder->addAll($comments, 'mini');
     $this->set('comments', $comments);
+  }
+  
+  public function cloud() {
+    $user = $this->getUser();
+
+    $this->set('cloudTags', $this->Media->cloud($user, array('conditions' => array('Field.name' => 'keyword'), 'count' => 400)));
+    $this->set('cloudCategories', $this->Media->cloud($user, array('conditions' => array('Field.name' => 'category'), 'count' => 100)));
   }
 }
 ?>

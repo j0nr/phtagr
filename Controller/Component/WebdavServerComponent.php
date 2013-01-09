@@ -3,12 +3,12 @@
  * PHP versions 5
  *
  * phTagr : Tag, Browse, and Share Your Photos.
- * Copyright 2006-2012, Sebastian Felis (sebastian@phtagr.org)
+ * Copyright 2006-2013, Sebastian Felis (sebastian@phtagr.org)
  *
  * Licensed under The GPL-2.0 License
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright 2006-2012, Sebastian Felis (sebastian@phtagr.org)
+ * @copyright     Copyright 2006-2013, Sebastian Felis (sebastian@phtagr.org)
  * @link          http://www.phtagr.org phTagr
  * @package       Phtagr
  * @since         phTagr 2.2b3
@@ -45,6 +45,18 @@ class WebdavServerComponent extends HTTP_WebDAV_Server
   var $controller = null;
 
   var $components = array('FileManager', 'FilterManager');
+
+  public function startup(Controller $controller) {
+  }
+
+  public function beforeRender(Controller $controller) {
+  }
+
+  public function shutdown(Controller $controller) {
+  }
+
+  public function beforeRedirect(Controller $controller, $url, $status = null, $exit = true) {
+  }
 
   public function WebdavServer() {
     $this->HTTP_WebDAV_Server();
@@ -198,8 +210,8 @@ class WebdavServerComponent extends HTTP_WebDAV_Server
     @note Requires PHP 5 (uses references in foreach statement) */
   public function pathRawurlencode($path) {
     $paths=explode('/', $path);
-    for ($i = 0; $i < count($parts); $i++) {
-      $part[$i] = rawurlencode($part[$i]);
+    for ($i = 0; $i < count($paths); $i++) {
+      $paths[$i] = rawurlencode($paths[$i]);
     }
     return implode('/', $paths);
   }
@@ -515,7 +527,7 @@ class WebdavServerComponent extends HTTP_WebDAV_Server
 
     // Update metadata on dirty file
     $file = $this->controller->MyFile->findByFilename($fspath);
-    if ($file && $this->controller->Media->hasFlag($file, MEDIA_FLAG_DIRTY)) {
+    if ($file && $this->controller->Media->hasFlag($file, MEDIA_FLAG_DIRTY) && $this->controller->getOption('filter.write.onDemand')) {
       $media = $this->controller->Media->findById($file['Media']['id']);
       $this->FilterManager->write($media);
     }

@@ -3,12 +3,12 @@
  * PHP versions 5
  *
  * phTagr : Tag, Browse, and Share Your Photos.
- * Copyright 2006-2012, Sebastian Felis (sebastian@phtagr.org)
+ * Copyright 2006-2013, Sebastian Felis (sebastian@phtagr.org)
  *
  * Licensed under The GPL-2.0 License
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright 2006-2012, Sebastian Felis (sebastian@phtagr.org)
+ * @copyright     Copyright 2006-2013, Sebastian Felis (sebastian@phtagr.org)
  * @link          http://www.phtagr.org phTagr
  * @package       Phtagr
  * @since         phTagr 2.2b3
@@ -44,9 +44,9 @@ class GpsFilterComponent extends BaseFilterComponent {
   /**
    * Read the meta data from the file
    *
-   * @param file File data model
-   * @param media Media data model
-   * @param options
+   * @param array $file File data model
+   * @param array $media Media data model
+   * @param array $options
    *  - offset Time offset in seconds
    *  - overwrite Overwrite GPS
    *  - range Threshold in seconds which media get a GPS point
@@ -67,6 +67,7 @@ class GpsFilterComponent extends BaseFilterComponent {
 
     $filename = $this->controller->MyFile->getFilename($file);
     $ext = strtolower(substr($filename, strrpos($filename, '.') + 1));
+    $this->clear();
     $points = array();
     if ($ext == 'log') {
       $points = $this->Nmea->readFile($filename);
@@ -77,10 +78,8 @@ class GpsFilterComponent extends BaseFilterComponent {
       Logger::debug("Reading GPS data from $filename has no points");
       return false;
     }
-    if ($options['overwrite']) {
-      $this->clear();
-    }
     $this->addPoints($points, $options['offset']);
+    unset($points);
 
     // fetch [first, last] positions
     $userId = $this->controller->getUserId();
@@ -107,6 +106,7 @@ class GpsFilterComponent extends BaseFilterComponent {
     }
     // fetch images of same user, no gps, range
     $updated = 0;
+    $mediaIds = array();
     foreach ($mediaSet as $media) {
       $utc = new DateTime($media['Media']['date'], $this->utcZone);
       $time = $utc->format('U');
@@ -121,6 +121,7 @@ class GpsFilterComponent extends BaseFilterComponent {
       $media['Media']['longitude'] = $position['longitude'];
       $media['Media']['flag'] |= MEDIA_FLAG_DIRTY;
       if ($this->controller->Media->save($media['Media'], true, array('latitude', 'longitude', 'flag'))) {
+        $mediaIds[] = $media['Media']['id'];
         Logger::debug("Update GPS position of image {$media['Media']['id']} to {$position['latitude']}/{$position['longitude']}");
       } else {
         Logger::warn("Could not update GPS position of image {$media['Media']['id']}");
@@ -128,7 +129,11 @@ class GpsFilterComponent extends BaseFilterComponent {
       $updated++;
     }
     Logger::info("Updated $updated of " . count($mediaSet) . " media for interval $startDate to $endDate");
-    return 1;
+    if (count($mediaIds)) {
+      $dummy = array('Media' => array('id' => array_pop($mediaIds)));
+      return $dummy;
+    }
+    return false;
   }
 
   public function write(&$file, &$media, $options = array()) {
@@ -168,7 +173,7 @@ class GpsFilterComponent extends BaseFilterComponent {
    * @param time Time in seconds
    * @return True if the time is in the current time interval
    */
-  public function _containsDate($time) {
+  private function _containsDate($time) {
     if (count($this->times) > 0 &&
       $time >= $this->times[0] - $this->range &&
       $time <= $this->times[count($this->times)-1] + $this->range) {
@@ -186,7 +191,7 @@ class GpsFilterComponent extends BaseFilterComponent {
    * @param high Higher bound
    * @return Index of time which is before the given time.
    */
-  public function _getIndex($time, $low, $high) {
+  private function _getIndex($time, $low, $high) {
     if ($high-$low < 2) {
       return $low;
     }
@@ -207,7 +212,7 @@ class GpsFilterComponent extends BaseFilterComponent {
    * @param y Second GPS point
    * @return Estimated position at the given time
    */
-  public function _estimatePosition($time, $x, $y) {
+  private function _estimatePosition($time, $x, $y) {
     // check pre conditions: x < time < y
     if ($x['time'] > $y['time']) {
       $z = $x;
@@ -316,5 +321,3 @@ class GpsFilterComponent extends BaseFilterComponent {
       $this->times[count($this->times)-1]+$this->range);
   }
 }
-
-?>

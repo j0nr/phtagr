@@ -3,12 +3,12 @@
  * PHP versions 5
  *
  * phTagr : Tag, Browse, and Share Your Photos.
- * Copyright 2006-2012, Sebastian Felis (sebastian@phtagr.org)
+ * Copyright 2006-2013, Sebastian Felis (sebastian@phtagr.org)
  *
  * Licensed under The GPL-2.0 License
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright 2006-2012, Sebastian Felis (sebastian@phtagr.org)
+ * @copyright     Copyright 2006-2013, Sebastian Felis (sebastian@phtagr.org)
  * @link          http://www.phtagr.org phTagr
  * @package       Phtagr
  * @since         phTagr 2.2b3
@@ -19,18 +19,20 @@ class BrowserController extends AppController
 {
   var $name = "Browser";
 
-  var $components = array('FileManager', 'RequestHandler', 'FilterManager', 'Upload', 'Zip', 'Plupload');
+  var $components = array('FileManager', 'RequestHandler', 'FilterManager', 'Upload', 'Zip', 'Plupload', 'QueryBuilder');
   var $uses = array('User', 'MyFile', 'Media', 'Option');
-  var $helpers = array('Form', 'Html', 'Number', 'FileList', 'ImageData', 'Plupload');
+  var $helpers = array('Form', 'Html', 'Number', 'FileList', 'ImageData', 'Plupload', 'Autocomplete');
   var $subMenu = false;
   /** Array of filesystem root directories. */
   var $_fsRoots = array();
 
   public function beforeFilter() {
     parent::beforeFilter();
+    $this->logUser();
     $this->subMenu = array(
       'import' => __("Import Files"),
       'upload' => __("Upload"),
+      'easyacl' => __("Edit Access Rrights"),
       'sync' => __("Meta Data Sync"),
       'view' => __("Overview"),
       );
@@ -222,9 +224,9 @@ class BrowserController extends AppController
       $this->redirect(null, 404);
     }
 
-    // Update metadata on dirty file
+    // Update metadata on dirty file ??? and if file was also changed? ask owner before writing?
     $file = $this->MyFile->findByFilename($filename);
-    if ($file && $this->Media->hasFlag($file, MEDIA_FLAG_DIRTY)) {
+    if ($file && $this->Media->hasFlag($file, MEDIA_FLAG_DIRTY) && $this->getOption('filter.write.onDemand')) {
       $media = $this->Media->findById($file['Media']['id']);
       $this->FilterManager->write($media);
     }
@@ -271,13 +273,19 @@ class BrowserController extends AppController
   }
 
   public function import() {
+
+    if ($this->hasRole(ROLE_ADMIN)) {
+      ini_set('max_execution_time', 3600);//1 hour
+    }
+
     $path = $this->_getPathFromUrl();
     if (empty($this->request->data)) {
       Logger::warn("Empty post data");
       $this->redirect('index/'.$path);
     }
 
-    $recursive = (bool) $this->request->data['Browser']['recursive'];
+    $recursive = (bool) $this->request->data['Browser']['options']['recursive'];
+    $options = $this->request->data['Browser']['options'];
     if (isset($this->request->data['unlink'])) {
       $this->_unlinkSelected($path, $this->request->data['Browser']['import'], $recursive);
       return;
@@ -301,7 +309,9 @@ class BrowserController extends AppController
     }
 
     $this->FilterManager->clearErrors();
-    $readed = $this->FilterManager->readFiles($toRead, $recursive);
+
+    $readed = $this->FilterManager->readFiles($toRead, $options);
+    $skipped = count($this->FilterManager->skipped);
     $errorCount = count($this->FilterManager->errors);
 
     $readCount = 0;
@@ -310,8 +320,9 @@ class BrowserController extends AppController
         $readCount++;
       }
     }
-    $this->Session->setFlash(__("Imported %d files (%d errors)", $readCount, $errorCount));
+    $this->Session->setFlash(__("Processed %d files (imported %d, skipped %d, %d errors)", $readCount, $readCount-$skipped, $skipped, $errorCount));
 
+    $this->FilterManager->ImageFilter->Exiftool->exitExiftool();
     $this->redirect('index/'.$path);
   }
 
@@ -351,7 +362,11 @@ class BrowserController extends AppController
       if (!$file) {
         continue;
       }
-      $filename = $fsPath . $file;
+      if ($file==="."){
+        $filename = $fsPath;
+      } else {
+        $filename = $fsPath . $file;
+      }
       if (is_dir($filename)) {
         $filename = Folder::slashTerm($filename);
         if ($recursive) {
@@ -727,8 +742,15 @@ class BrowserController extends AppController
       $this->FilterManager->clearErrors();
       $readed = $this->FilterManager->readFiles($files, false);
       $errors = $this->FilterManager->errors;
-      $this->Session->setFlash(__("Uploaded %d files with %d errors.", count($readed), count($errors)));
-      $this->set('imports', $readed);
+      $mediaIds = array();
+      foreach ($readed as $file => $mediaId) {
+        if ($mediaId) {
+          $mediaIds[] = $mediaId;
+        }
+      }
+      $this->Session->setFlash(__("Uploaded %d files with %d errors.", count($mediaIds), count($errors)));
+      $media = $this->Media->find('all', array('conditions' => array('Media.id' => $mediaIds)));
+      $this->set('imports', $media);
       $this->set('errors', $errors);
     } else {
       $this->set('imports', array());
@@ -756,14 +778,14 @@ class BrowserController extends AppController
       if (!$files) {
         $this->Session->setFlash(__("No files uploaded"));
         $this->redirect($this->action);
-      } else {
-        $toRead = array();
       }
       $this->FilterManager->clearErrors();
-      $result = $this->FilterManager->readFiles($files, false);
+      $result = $this->FilterManager->readFiles($files);
       $mediaIds = array();
-      foreach ($result as $name => $media) {
-        $mediaIds[] = $media['Media']['id'];
+      foreach ($result as $filename => $mediaId) {
+        if ($mediaId) {
+          $mediaIds[] = $mediaId;
+        }
       }
       $pluploadResponse['mediaIds'] = $mediaIds;
     }
@@ -773,5 +795,110 @@ class BrowserController extends AppController
     }
     $this->set('_serialize', array_keys($pluploadResponse));
   }
+
+  /**
+   * Extract acl changes from request form
+   *
+   * @param array $user Current model user
+   * @return array ACL changes
+   */
+  private function _extractAclParameter(&$user) {
+    $aclData = array('Media' => array());
+    foreach (array('readPreview', 'readOriginal', 'writeTag', 'writeMeta') as $name) {
+      if (!empty($this->request->data['Media'][$name]) && $this->request->data['Media'][$name] != ACL_LEVEL_KEEP) {
+        $aclData['Media'][$name] = $this->request->data['Media'][$name];
+      }
+    }
+    $editData = $this->Media->prepareMultiEditData($aclData, $user);
+    return $editData;
+  }
+
+  /**
+   * Spilt text into words and remove empty words
+   *
+   * @param string $text
+   * @return array
+   */
+  private function _splitWords($text) {
+    $words = preg_split('/\s*,\s*/', trim($text));
+    $result = array();
+    foreach ($words as $word) {
+      if ($word) {
+        $result[] = $word;
+      }
+    }
+    return $result;
+  }
+
+  /**
+   * Change acl for all media of first selected group or first sellected keyword
+   */
+  public function easyacl() {
+    $mediaIds = array();
+    $this->set('mediaIds', $mediaIds);
+
+    if (empty($this->request->data)) {
+      return;
+    }
+
+    $groupNames = $this->_splitWords($this->request->data['Group']['names']);
+    $tagNames = $this->_splitWords($this->request->data['Field']['keyword']);
+
+    if (!$groupNames && !$tagNames) {
+      $this->Session->setFlash(__("Group or tag criteria is missing"));
+      return;
+    }
+
+    $userId = $this->getUserId();
+    $user = $this->User->findById($userId);
+
+    $editData = $this->_extractAclParameter($user);
+    if (!$editData) {
+      $this->Session->setFlash(__("No access right changes given"));
+      return;
+    }
+
+    $queryData = array('user' => $user['User']['username']);
+    if ($groupNames) {
+      $queryData['group'] = $groupNames;
+    }
+    if ($tagNames) {
+      $queryData['tag'] = $tagNames;
+    }
+    $query = $this->QueryBuilder->build($queryData);
+    $allMedia = $this->Media->find('all', $query);
+
+    if ($allMedia) {
+      $mediaIds = $this->_applyAclChanges($allMedia, $editData, $user);
+      $this->set('mediaIds', $mediaIds);
+      $this->Session->setFlash(__("Updated access rights of %d media", count($mediaIds)));
+    } else {
+      $this->Session->setFlash(__("No media found!"));
+    }
+  }
+
+  private function _applyAclChanges(&$allMedia, &$editData, &$user) {
+    $changedMedia = array();
+    foreach ($allMedia as $media) {
+      $this->Media->setAccessFlags($media, $user);
+      // primary access check
+      if (!$media['Media']['canWriteTag'] && !$media['Media']['canWriteAcl']) {
+        Logger::warn("User '{$user['User']['username']}' ({$user['User']['id']}) has no previleges to change any metadata of image ".$id);
+        continue;
+      }
+      $tmp = $this->Media->editMulti($media, $editData, $user);
+      if ($tmp) {
+        $changedMedia[] = $tmp;
+      }
+    }
+    if ($changedMedia) {
+      if (!$this->Media->saveAll($changedMedia)) {
+        Logger::warn("Could not save media: " . join(", ", Set::extract("/Media/id", $changedMedia)));
+      } else {
+        Logger::debug("Saved media: " . join(', ', Set::extract("/Media/id", $changedMedia)));
+        return Set::extract('/Media/id', $changedMedia);
+      }
+    }
+    return array();
+  }
 }
-?>
