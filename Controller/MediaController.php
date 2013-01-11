@@ -131,7 +131,7 @@ class MediaController extends AppController
     $this->viewClass = 'Media';
   }
 
-  public function _createFlashVideo($id) {
+  /*public function _createFlashVideo($id) {
     $id = intval($id);
     $media = $this->_getMedia($id, 'preview');
     $this->loadComponent('FlashVideo');
@@ -147,6 +147,24 @@ class MediaController extends AppController
     }
 
     return $flashFilename;
+  }*/
+  
+  public function _createVideojs($id) {
+    $id = intval($id);
+    $media = $this->_getMedia($id, 'preview');
+    $this->loadComponent('Videojs');
+    $config = array(
+      'size' => OUTPUT_SIZE_VIDEO,
+      'bitrate' => OUTPUT_BITRATE_VIDEO
+      );
+    $videojsFilename = $this->Videojs->create($media, $config);
+
+    if (!is_file($videojsFilename)) {
+      Logger::err("Could not create preview file {$videojsFilename}");
+      $this->redirect(null, 500);
+    }
+
+    return $videojsFilename;
   }
 
   public function mini($id) {
@@ -170,7 +188,7 @@ class MediaController extends AppController
   }
 
   public function video($id) {
-    $filename = $this->_createFlashVideo($id);
+    $filename = $this->_createVideojs($id);
     $mediaOptions = $this->MyFile->getMediaViewOptions($filename);
     $mediaOptions['download'] = true;
     $this->viewClass = 'Media';
@@ -236,7 +254,7 @@ class MediaController extends AppController
       $filename = false;
       $mediaType = $this->Media->getType($media);
       if ($mediaType == MEDIA_TYPE_VIDEO) {
-        $filename = $this->_createFlashVideo($media['Media']['id']);
+        $filename = $this->_createVideojs($media['Media']['id']);
         if (is_readable($filename)) {
           $video = $this->Media->getFile($media, FILE_TYPE_VIDEO);
           $name = substr($video['File']['file'], 0, strrpos($video['File']['file'], '.')) . '.flv';
