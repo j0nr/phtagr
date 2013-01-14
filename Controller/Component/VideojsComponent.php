@@ -66,7 +66,7 @@ class VideojsComponent extends Component {
     if ($this->controller->MyFile->getExtension($file) == 'mp4' &&
       $media['Media']['width'] <= $this->config['size'] &&
       $media['Media']['height'] <= $this->config['size'] &&
-      $h264 == 'true';
+      $h264 == 'true'
       ) {
       return true;
     }
@@ -104,7 +104,7 @@ class VideojsComponent extends Component {
       //TODO If video is valid MP4, need to go ahead and make webm and flv version
       return $src;
     }
-    
+   /* 
     $src = $this->controller->MyFile->getFilename($video);
     if ($this->isValidWEBM($media, $video)) {
       Logger::verbose("Source video $src is webm, creating MP4 and FLV.");
@@ -118,19 +118,19 @@ class VideojsComponent extends Component {
       //TODO If video is valid FLV, need to go ahead and make webm and mp4 version
       return $src;
     }
-
-    $flashFilename = $this->FileCache->getFilePath($media, 'flashmovie', 'flv');
-    if (!$flashFilename) {
+*/
+    $videojsFilename = $this->FileCache->getFilePath($media, 'mp4movie', 'mp4');
+    if (!$videojsFilename) {
       Logger::fatal("Precondition of cache directory failed: $cacheDir");
       return false;
     }
 
-    if (!file_exists($flashFilename) && !$this->convertVideo($media, $src, $flashFilename, $config)) {
-      Logger::err("Could not create preview file {$flashFilename}");
+    if (!file_exists($videojsFilename) && !$this->convertVideo($media, $src, $videojsFilename, $config)) {
+      Logger::err("Could not create preview file {$videojsFilename}");
       return false;
     }
 
-    return $flashFilename;
+    return $videojsFilename;
   }
 
   public function convertVideo($media, $src, $dst, $config = array()) {

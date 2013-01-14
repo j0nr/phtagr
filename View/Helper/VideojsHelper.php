@@ -26,26 +26,41 @@ class VideojsHelper extends AppHelper
     $this->Html->script('http://vjs.zencdn.net/c/video.js', array('inline' => false));
     return '';
   }
+  
+  /**
+   * Create array of alternative video formats
+   */
+  function getSources(&$media) {
+    $extensions = array ('mp4', 'webm', 'flv');
+    $id = $media['Media']['id'];
+
+    $results = array();
+    foreach($extensions as $ext) {
+      $params = array('src' => Router::url("/media/video/$id/$id.$ext",true), 'type' => "video/$ext");
+      $results[] = $this->Html->tag('source', '', $params);
+    }
+    return $results;
+  }
 
   /**
-   * Creates the link container for the flowplayer
+   * Creates the link container for Videojs
    */
-  function link($media) {
+  function getVideojsParams(&$media) {
     list($width, $height) = $this->ImageData->getimagesize($this->request->data, OUTPUT_SIZE_VIDEO);
     $height += 24;
     $id = $media['Media']['id'];
-
-    $out = $this->Html->tag('a', false, array(
-      'href' => Router::url("/media/video/$id/$id.flv", true),
-      'style' => "display:block; width: {$width}px; height: {$height}px;",
-      'id' => 'player'
-      ));
-    return $out;
+    return array(
+      'width' => $width,
+      'height' => $height,
+      'preload' => 'auto',
+      'class' => 'video-js vjs-default-skin',
+      'data-setup' => '{}',
+      'poster' => Router::url("/media/preview/$id/$id.jpg", true));
   }
 
   /**
    * Creates the start script for the flowplayer
-   */
+   *
   function player($media) {
     $id = $media['Media']['id'];
     return $this->Html->scriptBlock("flowplayer('player', '".Router::url("/flowplayer/flowplayer-3.1.5.swf", true)."', {
@@ -61,9 +76,14 @@ playlist: [
   }
 ]});\n");
   }
+  */
 
   function video($media) {
-    $out = $this->importPlayer().$this->link($media).$this->player($media);
+    $out = $this->importPlayer();
+    $params = $this->getVideojsParams($media);
+    $sources = $this->getSources($media);
+    
+    $out .= $this->Html->tag('video', join("\n", $sources), $params);
     return $out;
   }
 }
