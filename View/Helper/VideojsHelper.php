@@ -53,6 +53,7 @@ class VideojsHelper extends AppHelper
       'width' => $width,
       'height' => $height,
       'preload' => 'auto',
+      'controls' => 'controls',
       'class' => 'video-js vjs-default-skin',
       'data-setup' => '{}',
       'poster' => Router::url("/media/preview/$id/$id.jpg", true));
